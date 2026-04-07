@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "HTML-in-Canvas Shader",
+  "version": "0.2.0",
+  "description": "Snapshot the page with the experimental drawElement() API and apply a custom WebGL fragment shader on top.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "HTML Shader",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "permissions": ["activeTab", "scripting"]
+}

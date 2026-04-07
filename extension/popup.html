@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>HTML Shader</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; padding: 12px; width: 360px; background: #111; color: #eee; }
+      h1 { font-size: 13px; margin: 0 0 8px; font-weight: 600; letter-spacing: .02em; }
+      p.note { font-size: 11px; color: #888; margin: 0 0 8px; line-height: 1.4; }
+      .editor { position: relative; height: 260px; border: 1px solid #333; border-radius: 4px; background: #1a1a1a; overflow: hidden; }
+      .editor pre, .editor textarea {
+        margin: 0; padding: 8px; border: 0; width: 100%; height: 100%;
+        font-family: ui-monospace, Menlo, monospace; font-size: 11px; line-height: 1.45;
+        white-space: pre; tab-size: 2; box-sizing: border-box; overflow: auto;
+      }
+      .editor pre { position: absolute; inset: 0; pointer-events: none; color: #eee; }
+      .editor textarea {
+        position: absolute; inset: 0; background: transparent; color: transparent;
+        caret-color: #fff; resize: none; outline: none;
+      }
+      .editor textarea::selection { background: rgba(120,120,255,0.35); color: transparent; }
+      .tok-key { color: #c792ea; }
+      .tok-type { color: #82aaff; }
+      .tok-bi  { color: #ffcb6b; }
+      .tok-num { color: #f78c6c; }
+      .tok-com { color: #5c6370; font-style: italic; }
+      .tok-pp  { color: #89ddff; }
+      .tok-str { color: #c3e88d; }
+      .row { display: flex; gap: 6px; margin-top: 8px; }
+      button { flex: 1; background: #2a2a2a; color: #eee; border: 1px solid #444; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+      button:hover { background: #333; }
+      button.primary { background: #4a3aff; border-color: #6a5aff; }
+      select { width: 100%; background: #1a1a1a; color: #eee; border: 1px solid #333; padding: 6px; border-radius: 4px; margin-bottom: 6px; }
+      #status { font-size: 11px; color: #f88; margin-top: 6px; min-height: 14px; }
+    </style>
+  </head>
+  <body>
+    <h1>HTML-in-Canvas Shader</h1>
+    <p class="note">Requires chrome://flags → "Experimental Web Platform features". Uniforms: <code>uTex</code>, <code>uTime</code>, <code>uResolution</code>, <code>vUv</code>.</p>
+    <select id="preset">
+      <option value="blur">Preset: Blur</option>
+      <option value="swirl">Preset: Swirl</option>
+      <option value="invert">Preset: Invert</option>
+      <option value="chromatic">Preset: Chromatic aberration</option>
+      <option value="wave">Preset: Wave distortion</option>
+      <option value="ascii">Preset: Pixelate</option>
+    </select>
+    <div class="editor">
+      <pre id="shader-hl"><code></code></pre>
+      <textarea id="shader" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+    </div>
+    <div class="row">
+      <button id="apply" class="primary">Apply</button>
+      <button id="remove">Remove</button>
+    </div>
+    <div id="status"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>
