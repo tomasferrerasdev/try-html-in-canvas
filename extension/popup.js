@@ -170,11 +170,12 @@ $('remove').addEventListener('click', () => inject(removeShaderInPage));
 
 function applyShaderInPage(fragSrc) {
   const ctx2dProto = CanvasRenderingContext2D.prototype;
+  const hasDrawImage = 'drawElementImage' in ctx2dProto;
   const hasDraw = 'drawElement' in ctx2dProto;
   const hasPlace = 'placeElement' in ctx2dProto;
-  console.log('[html-shader] drawElement?', hasDraw, 'placeElement?', hasPlace);
-  if (!hasDraw && !hasPlace) {
-    return 'No drawElement/placeElement on CanvasRenderingContext2D. Enable chrome://flags#enable-experimental-web-platform-features and restart Chrome.';
+  console.log('[html-shader] drawElementImage?', hasDrawImage, 'drawElement?', hasDraw, 'placeElement?', hasPlace);
+  if (!hasDrawImage && !hasDraw && !hasPlace) {
+    return 'No drawElementImage/drawElement on CanvasRenderingContext2D. Enable chrome://flags/#canvas-draw-element and restart Chrome.';
   }
 
   // Clean up existing
@@ -327,9 +328,13 @@ out vec4 outColor;
     // Hide our canvas while snapping so it doesn't recurse
     try {
       sctx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
-      // @ts-ignore — experimental. drawElement already rasterizes at the
+      // @ts-ignore — experimental. drawElementImage already rasterizes at the
       // canvas backing-store resolution, so do NOT apply a dpr transform.
-      sctx.drawElement(wrapper, 0, 0);
+      if (sctx.drawElementImage) {
+        sctx.drawElementImage(wrapper, 0, 0);
+      } else {
+        sctx.drawElement(wrapper, 0, 0);
+      }
     } catch (e) {
       stopped = true;
       console.error('[html-shader] snapshot failed', e);
