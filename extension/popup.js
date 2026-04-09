@@ -123,7 +123,7 @@ void main() {
 };
 
 const DEFAULT_PRESET = "blur";
-const ROLL_DEFAULT_PROGRESS = 1;
+const ROLL_DEFAULT_PROGRESS = 0.1;
 
 const $ = (id) => document.getElementById(id);
 const statusEl = $("status");
@@ -817,13 +817,46 @@ void main() {
     sourceCanvas.width = width;
     sourceCanvas.height = height;
     renderer.resize(width, height);
+    if (config.engine === "roll") {
+      renderer.update({ rollProgress: getRollProgressFromScroll() });
+    }
   };
   resize();
   addEventListener("resize", resize);
 
+  const getRollScrollMetrics = () => {
+    const maxScrollTop = Math.max(wrapper.scrollHeight - wrapper.clientHeight, 1);
+    return { maxScrollTop };
+  };
+
+  const getRollProgressFromScroll = () => {
+    const { maxScrollTop } = getRollScrollMetrics();
+    const ratio = Math.min(Math.max(wrapper.scrollTop / maxScrollTop, 0), 1);
+    return 0.1 + ratio * 0.9;
+  };
+
+  const syncRollFromScroll = () => {
+    if (config.engine !== "roll") return;
+    renderer.update({ rollProgress: getRollProgressFromScroll() });
+  };
+
+  const setScrollFromRollProgress = (progress) => {
+    if (config.engine !== "roll") {
+      renderer.update({ rollProgress: progress });
+      return;
+    }
+    const clamped = Math.min(Math.max(Number(progress) || 0, 0), 1);
+    const { maxScrollTop } = getRollScrollMetrics();
+    const ratio = clamped <= 0.1 ? 0 : (clamped - 0.1) / 0.9;
+    wrapper.scrollTop = ratio * maxScrollTop;
+    renderer.update({ rollProgress: getRollProgressFromScroll() });
+  };
+  setScrollFromRollProgress(config.rollProgress);
+
   const onWheel = (e) => {
     wrapper.scrollTop += e.deltaY;
     wrapper.scrollLeft += e.deltaX;
+    syncRollFromScroll();
     e.preventDefault();
   };
   const onKey = (e) => {
@@ -835,10 +868,12 @@ void main() {
     else if (e.key === "Home") wrapper.scrollTop = 0;
     else if (e.key === "End") wrapper.scrollTop = wrapper.scrollHeight;
     else return;
+    syncRollFromScroll();
     e.preventDefault();
   };
   addEventListener("wheel", onWheel, { passive: false });
   addEventListener("keydown", onKey);
+  wrapper.addEventListener("scroll", syncRollFromScroll, { passive: true });
 
   const start = performance.now();
   let raf = 0;
@@ -890,6 +925,7 @@ void main() {
     removeEventListener("resize", resize);
     removeEventListener("wheel", onWheel);
     removeEventListener("keydown", onKey);
+    wrapper.removeEventListener("scroll", syncRollFromScroll);
     renderer.destroy();
     restoreDom();
     delete window.__htmlShaderStop;
@@ -920,7 +956,14 @@ void main() {
   };
 
   window.__htmlShaderStop = stop;
-  window.__htmlShaderUpdate = (nextConfig) => renderer.update(nextConfig || {});
+  window.__htmlShaderUpdate = (nextConfig) => {
+    if (!nextConfig) return;
+    if ("rollProgress" in nextConfig) {
+      setScrollFromRollProgress(nextConfig.rollProgress);
+      return;
+    }
+    renderer.update(nextConfig);
+  };
   raf = requestAnimationFrame(frame);
   return null;
 }
