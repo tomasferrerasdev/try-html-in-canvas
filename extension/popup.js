@@ -250,7 +250,10 @@ const GLSL_BUILTINS = new Set([
 ]);
 
 function escHtml(s) {
-  return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+  return s.replace(
+    /[&<>]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]),
+  );
 }
 
 function highlight(src) {
@@ -263,9 +266,12 @@ function highlight(src) {
     else if (str) out += `<span class="tok-str">${escHtml(m)}</span>`;
     else if (num) out += `<span class="tok-num">${m}</span>`;
     else if (ident) {
-      if (GLSL_KEYWORDS.has(ident)) out += `<span class="tok-key">${ident}</span>`;
-      else if (GLSL_TYPES.has(ident)) out += `<span class="tok-type">${ident}</span>`;
-      else if (GLSL_BUILTINS.has(ident)) out += `<span class="tok-bi">${ident}</span>`;
+      if (GLSL_KEYWORDS.has(ident))
+        out += `<span class="tok-key">${ident}</span>`;
+      else if (GLSL_TYPES.has(ident))
+        out += `<span class="tok-type">${ident}</span>`;
+      else if (GLSL_BUILTINS.has(ident))
+        out += `<span class="tok-bi">${ident}</span>`;
       else out += ident;
     } else out += escHtml(m);
     return "";
@@ -308,8 +314,8 @@ function syncPresetUi() {
   rollControlsEl.hidden = preset.kind !== "roll";
   presetHintEl.innerHTML =
     preset.kind === "roll"
-      ? 'Requires <code>chrome://flags/#canvas-draw-element</code>. This preset uses a built-in WebGL mesh pass with live <code>uProgress</code> control.'
-      : 'Requires <code>chrome://flags/#canvas-draw-element</code>. Fragment presets expose <code>uTex</code>, <code>uTime</code>, <code>uResolution</code>, <code>vUv</code>.';
+      ? "Requires <code>chrome://flags/#canvas-draw-element</code>. This preset uses a built-in WebGL mesh pass with live <code>uProgress</code> control."
+      : "Requires <code>chrome://flags/#canvas-draw-element</code>. Fragment presets expose <code>uTex</code>, <code>uTime</code>, <code>uResolution</code>, <code>vUv</code>.";
   syncHighlight();
 }
 
@@ -333,7 +339,9 @@ shaderEl.addEventListener("keydown", (e) => {
     e.preventDefault();
     const start = shaderEl.selectionStart;
     const end = shaderEl.selectionEnd;
-    shaderEl.value = `${shaderEl.value.slice(0, start)}  ${shaderEl.value.slice(end)}`;
+    shaderEl.value = `${shaderEl.value.slice(0, start)}  ${shaderEl.value.slice(
+      end,
+    )}`;
     shaderEl.selectionStart = shaderEl.selectionEnd = start + 2;
     syncHighlight();
   }
@@ -353,7 +361,9 @@ rollProgressEl.addEventListener("input", async () => {
   setRollProgressLabel();
   if (getPreset().kind !== "roll" || appState.appliedEngine !== "roll") return;
   try {
-    await inject(updateShaderConfigInPage, [{ rollProgress: getRollProgress() }]);
+    await inject(updateShaderConfigInPage, [
+      { rollProgress: getRollProgress() },
+    ]);
     setStatus("");
   } catch (e) {
     setStatus(String(e));
@@ -513,7 +523,11 @@ out vec4 outColor;
     const program = createProgram(gl, vsSrc, fsSrc);
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 3, -1, -1, 3]),
+      gl.STATIC_DRAW,
+    );
 
     const aPos = gl.getAttribLocation(program, "aPos");
     const texture = createSnapshotTexture(gl);
@@ -541,7 +555,14 @@ out vec4 outColor;
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          sourceCanvas,
+        );
 
         gl.uniform1i(uniforms.uTex, 0);
         gl.uniform1f(uniforms.uTime, time);
@@ -689,19 +710,34 @@ void main() {
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          sourceCanvas,
+        );
 
         gl.uniform1i(locations.uTex, 0);
         gl.uniform1f(locations.uProgress, state.progress);
         gl.uniform1f(locations.uTopAnchor, 1.0);
         gl.uniform1f(locations.uRadius, 0.08);
         gl.uniform1f(locations.uThickness, 0.003);
-        gl.uniform1f(locations.uAspect, state.width / Math.max(state.height, 1));
+        gl.uniform1f(
+          locations.uAspect,
+          state.width / Math.max(state.height, 1),
+        );
         gl.uniform1f(locations.uCameraDist, cameraDist);
         gl.uniform1f(locations.uFovScale, fovScale);
         gl.uniform1f(locations.uNear, near);
         gl.uniform1f(locations.uFar, far);
-        gl.drawElements(gl.TRIANGLES, geometry.indices.length, gl.UNSIGNED_SHORT, 0);
+        gl.drawElements(
+          gl.TRIANGLES,
+          geometry.indices.length,
+          gl.UNSIGNED_SHORT,
+          0,
+        );
       },
       destroy() {
         gl.deleteTexture(texture);
@@ -791,7 +827,8 @@ void main() {
     restored = true;
     scrollState.left = wrapper.scrollLeft;
     scrollState.top = wrapper.scrollTop;
-    for (const node of Array.from(wrapper.childNodes)) document.body.appendChild(node);
+    for (const node of Array.from(wrapper.childNodes))
+      document.body.appendChild(node);
     canvas.remove();
     occluder.remove();
     sourceCanvas.remove();
@@ -805,7 +842,10 @@ void main() {
     return "2D canvas unavailable";
   }
 
-  const gl = canvas.getContext("webgl2", { premultipliedAlpha: true, alpha: true });
+  const gl = canvas.getContext("webgl2", {
+    premultipliedAlpha: true,
+    alpha: true,
+  });
   if (!gl) {
     restoreDom();
     return "WebGL2 unavailable";
@@ -823,7 +863,10 @@ void main() {
   }
 
   const getRollScrollMetrics = () => {
-    const maxScrollTop = Math.max(wrapper.scrollHeight - wrapper.clientHeight, 1);
+    const maxScrollTop = Math.max(
+      wrapper.scrollHeight - wrapper.clientHeight,
+      1,
+    );
     return { maxScrollTop };
   };
 
@@ -923,7 +966,10 @@ void main() {
         if (!isPaintRecordMiss(error)) throw error;
         snapshotMisses += 1;
         if (snapshotMisses <= 5) {
-          console.warn("[html-shader] paint record not ready yet, retrying", snapshotMisses);
+          console.warn(
+            "[html-shader] paint record not ready yet, retrying",
+            snapshotMisses,
+          );
         }
         return false;
       }
@@ -965,7 +1011,11 @@ void main() {
       return;
     }
 
-    renderer.render((performance.now() - start) / 1000, canvas.width, canvas.height);
+    renderer.render(
+      (performance.now() - start) / 1000,
+      canvas.width,
+      canvas.height,
+    );
     raf = requestAnimationFrame(frame);
   };
 
