@@ -604,7 +604,13 @@ uniform sampler2D uTex;
 in vec2 vUv;
 out vec4 outColor;
 void main() {
-  outColor = texture(uTex, vUv);
+  vec4 texel = texture(uTex, vUv);
+  float edgeFade = smoothstep(0.0, 0.08, vUv.x) * smoothstep(0.0, 0.08, 1.0 - vUv.x);
+  float bottomFade = smoothstep(0.0, 0.22, vUv.y);
+  float rolledPresence = 1.0 - smoothstep(0.18, 0.9, vUv.y);
+  float shadow = edgeFade * bottomFade * rolledPresence * 0.18;
+  vec3 shadowColor = vec3(0.0);
+  outColor = vec4(mix(texel.rgb, shadowColor, shadow), texel.a);
 }`;
 
     const program = createProgram(gl, vsSrc, fsSrc);
@@ -754,7 +760,7 @@ void main() {
     inset: "0",
     zIndex: "2147483646",
     pointerEvents: "none",
-    background: "#fff",
+    background: "#fdf6e3",
   });
   document.body.appendChild(occluder);
 
