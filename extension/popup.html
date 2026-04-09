@@ -8,6 +8,7 @@
       h1 { font-size: 13px; margin: 0 0 8px; font-weight: 600; letter-spacing: .02em; }
       p.note { font-size: 11px; color: #888; margin: 0 0 8px; line-height: 1.4; }
       .editor { position: relative; height: 260px; border: 1px solid #333; border-radius: 4px; background: #1a1a1a; overflow: hidden; }
+      .editor.is-readonly { border-color: #3c3c3c; background: #151515; }
       .editor pre, .editor textarea {
         margin: 0; padding: 8px; border: 0; width: 100%; height: 100%;
         font-family: ui-monospace, Menlo, monospace; font-size: 11px; line-height: 1.45;
@@ -18,6 +19,7 @@
         position: absolute; inset: 0; background: transparent; color: transparent;
         caret-color: #fff; resize: none; outline: none;
       }
+      .editor.is-readonly textarea { cursor: default; }
       .editor textarea::selection { background: rgba(120,120,255,0.35); color: transparent; }
       .tok-key { color: #c792ea; }
       .tok-type { color: #82aaff; }
@@ -26,6 +28,10 @@
       .tok-com { color: #5c6370; font-style: italic; }
       .tok-pp  { color: #89ddff; }
       .tok-str { color: #c3e88d; }
+      .controls { display: grid; gap: 6px; margin-top: 8px; }
+      .control { display: grid; gap: 4px; }
+      .control label { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #bbb; }
+      .control input[type="range"] { width: 100%; }
       .row { display: flex; gap: 6px; margin-top: 8px; }
       button { flex: 1; background: #2a2a2a; color: #eee; border: 1px solid #444; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
       button:hover { background: #333; }
@@ -36,7 +42,7 @@
   </head>
   <body>
     <h1>HTML-in-Canvas Shader</h1>
-    <p class="note">Requires chrome://flags/#canvas-draw-element. Uniforms: <code>uTex</code>, <code>uTime</code>, <code>uResolution</code>, <code>vUv</code>.</p>
+    <p id="preset_hint" class="note">Requires chrome://flags/#canvas-draw-element. Fragment presets expose <code>uTex</code>, <code>uTime</code>, <code>uResolution</code>, <code>vUv</code>.</p>
     <select id="preset">
       <option value="blur">Preset: Blur</option>
       <option value="swirl">Preset: Swirl</option>
@@ -44,10 +50,20 @@
       <option value="chromatic">Preset: Chromatic aberration</option>
       <option value="wave">Preset: Wave distortion</option>
       <option value="ascii">Preset: Pixelate</option>
+      <option value="roll">Preset: 3D Roll</option>
     </select>
     <div class="editor">
       <pre id="shader-hl"><code></code></pre>
       <textarea id="shader" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+    </div>
+    <div id="roll_controls" class="controls" hidden>
+      <div class="control">
+        <label for="roll_progress">
+          <span>Roll progress</span>
+          <span id="roll_progress_value">1.00</span>
+        </label>
+        <input id="roll_progress" type="range" min="0" max="1" step="0.01" value="1" />
+      </div>
     </div>
     <div class="row">
       <button id="apply" class="primary">Apply</button>
