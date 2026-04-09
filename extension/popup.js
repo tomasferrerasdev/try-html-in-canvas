@@ -978,7 +978,7 @@ void main() {
     return false;
   };
 
-  const stop = () => {
+const stop = () => {
     if (stopped) return;
     stopped = true;
     cancelAnimationFrame(raf);
@@ -1011,11 +1011,7 @@ void main() {
       return;
     }
 
-    renderer.render(
-      (performance.now() - start) / 1000,
-      canvas.width,
-      canvas.height,
-    );
+    renderer.render((performance.now() - start) / 1000, canvas.width, canvas.height);
     raf = requestAnimationFrame(frame);
   };
 
