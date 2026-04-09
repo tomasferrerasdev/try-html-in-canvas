@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "HTML-in-Canvas Shader",
-  "version": "0.2.0",
-  "description": "Snapshot the page with the experimental drawElement() API and apply a custom WebGL fragment shader on top.",
+  "version": "0.3.0",
+  "description": "Snapshot the page with the experimental drawElement() API and apply fragment shaders or a built-in 3D roll preset on top.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "HTML Shader",
