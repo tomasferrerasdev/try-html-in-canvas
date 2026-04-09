@@ -754,7 +754,7 @@ void main() {
     inset: "0",
     zIndex: "2147483646",
     pointerEvents: "none",
-    background: getComputedStyle(document.body).background || getComputedStyle(document.body).backgroundColor || "#000",
+    background: "#fff",
   });
   document.body.appendChild(occluder);
 
