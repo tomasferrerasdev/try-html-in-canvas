@@ -725,6 +725,8 @@ void main() {
     width: "100vw",
     height: "100vh",
     zIndex: "0",
+    opacity: "0",
+    pointerEvents: "none",
     layoutSubtree: "layout",
   });
   sourceCanvas.style.setProperty("layout-subtree", "layout");
