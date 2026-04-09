@@ -322,6 +322,8 @@ out vec4 outColor;
   const start = performance.now();
   let raf = 0;
   let stopped = false;
+  let snapshotRetries = 0;
+  const MAX_SNAPSHOT_RETRIES = 120; // ~2s at 60fps — wait for first paint
 
   function frame() {
     if (stopped) return;
@@ -335,7 +337,16 @@ out vec4 outColor;
       } else {
         sctx.drawElement(wrapper, 0, 0);
       }
+      snapshotRetries = 0;
     } catch (e) {
+      // The experimental API throws InvalidStateError when the element hasn't
+      // been painted yet ("No cached paint record"). Retry for a couple of
+      // seconds to let the browser complete its first layout/paint pass.
+      if (e instanceof DOMException && e.name === 'InvalidStateError' && snapshotRetries < MAX_SNAPSHOT_RETRIES) {
+        snapshotRetries++;
+        raf = requestAnimationFrame(frame);
+        return;
+      }
       stopped = true;
       console.error('[html-shader] snapshot failed', e);
       return;
