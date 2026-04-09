@@ -605,10 +605,12 @@ in vec2 vUv;
 out vec4 outColor;
 void main() {
   vec4 texel = texture(uTex, vUv);
-  float edgeFade = smoothstep(0.0, 0.08, vUv.x) * smoothstep(0.0, 0.08, 1.0 - vUv.x);
-  float bottomFade = smoothstep(0.0, 0.22, vUv.y);
-  float rolledPresence = 1.0 - smoothstep(0.18, 0.9, vUv.y);
-  float shadow = edgeFade * bottomFade * rolledPresence * 0.18;
+  float edgeFade = smoothstep(0.0, 0.12, vUv.x) * smoothstep(0.0, 0.12, 1.0 - vUv.x);
+  float bottomFade = smoothstep(0.0, 0.3, vUv.y);
+  float rolledPresence = 1.0 - smoothstep(0.22, 0.92, vUv.y);
+  float coreShadow = edgeFade * bottomFade * rolledPresence;
+  float spreadShadow = edgeFade * smoothstep(0.0, 0.55, vUv.y) * (1.0 - smoothstep(0.45, 1.0, vUv.y));
+  float shadow = min(coreShadow * 0.28 + spreadShadow * 0.12, 0.34);
   vec3 shadowColor = vec3(0.0);
   outColor = vec4(mix(texel.rgb, shadowColor, shadow), texel.a);
 }`;
@@ -760,7 +762,11 @@ void main() {
     inset: "0",
     zIndex: "2147483646",
     pointerEvents: "none",
-    background: "#fdf6e3",
+    backgroundColor: "#fdf6e3",
+    backgroundImage:
+      "linear-gradient(rgba(120, 106, 80, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(120, 106, 80, 0.06) 1px, transparent 1px)",
+    backgroundSize: "32px 32px",
+    backgroundPosition: "-1px -1px",
   });
   document.body.appendChild(occluder);
 
