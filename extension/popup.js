@@ -669,7 +669,13 @@ void main() {
     const state = {
       width: 1,
       height: 1,
-      progress: clampUnit(Number(config.rollProgress ?? 1)),
+      progress: 1,
+      targetProgress: clampUnit(Number(config.rollProgress ?? 1)),
+      introFrom: 1,
+      introTo: clampUnit(Number(config.rollProgress ?? 1)),
+      introStartTime: 0,
+      introDuration: 0.7,
+      introActive: true,
     };
     const near = 0.1;
     const far = 10;
@@ -684,10 +690,36 @@ void main() {
       },
       update(nextConfig) {
         if ("rollProgress" in nextConfig) {
-          state.progress = clampUnit(Number(nextConfig.rollProgress));
+          const nextProgress = clampUnit(Number(nextConfig.rollProgress));
+          state.targetProgress = nextProgress;
+          if (nextConfig.animateFrom !== undefined) {
+            state.introFrom = clampUnit(Number(nextConfig.animateFrom));
+            state.introTo = nextProgress;
+            state.introStartTime = Number(nextConfig.time ?? 0);
+            state.introActive = true;
+            state.progress = state.introFrom;
+          } else if (state.introActive) {
+            state.introTo = nextProgress;
+          } else {
+            state.progress = nextProgress;
+          }
         }
       },
-      render(_time, width, height) {
+      render(time, width, height) {
+        if (state.introActive) {
+          const t = Math.min(
+            Math.max((time - state.introStartTime) / state.introDuration, 0),
+            1,
+          );
+          const eased = 1 - Math.pow(1 - t, 3);
+          state.progress =
+            state.introFrom + (state.introTo - state.introFrom) * eased;
+          if (t >= 1) {
+            state.introActive = false;
+            state.progress = state.targetProgress;
+          }
+        }
+
         gl.viewport(0, 0, width, height);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
@@ -908,6 +940,13 @@ void main() {
   resize();
   addEventListener("resize", resize);
 
+  if (config.engine === "roll") {
+    renderer.update({
+      rollProgress: config.rollProgress,
+      animateFrom: 1,
+      time: 0,
+    });
+  }
   setScrollFromRollProgress(config.rollProgress);
 
   const onWheel = (e) => {
@@ -978,7 +1017,7 @@ void main() {
     return false;
   };
 
-const stop = () => {
+  const stop = () => {
     if (stopped) return;
     stopped = true;
     cancelAnimationFrame(raf);
@@ -1011,7 +1050,11 @@ const stop = () => {
       return;
     }
 
-    renderer.render((performance.now() - start) / 1000, canvas.width, canvas.height);
+    renderer.render(
+      (performance.now() - start) / 1000,
+      canvas.width,
+      canvas.height,
+    );
     raf = requestAnimationFrame(frame);
   };
 
