@@ -809,21 +809,6 @@ void main() {
     return `Shader error: ${e.message}`;
   }
 
-  const resize = () => {
-    const width = Math.floor(innerWidth * dpr);
-    const height = Math.floor(innerHeight * dpr);
-    canvas.width = width;
-    canvas.height = height;
-    sourceCanvas.width = width;
-    sourceCanvas.height = height;
-    renderer.resize(width, height);
-    if (config.engine === "roll") {
-      renderer.update({ rollProgress: getRollProgressFromScroll() });
-    }
-  };
-  resize();
-  addEventListener("resize", resize);
-
   const getRollScrollMetrics = () => {
     const maxScrollTop = Math.max(wrapper.scrollHeight - wrapper.clientHeight, 1);
     return { maxScrollTop };
@@ -851,6 +836,22 @@ void main() {
     wrapper.scrollTop = ratio * maxScrollTop;
     renderer.update({ rollProgress: getRollProgressFromScroll() });
   };
+
+  const resize = () => {
+    const width = Math.floor(innerWidth * dpr);
+    const height = Math.floor(innerHeight * dpr);
+    canvas.width = width;
+    canvas.height = height;
+    sourceCanvas.width = width;
+    sourceCanvas.height = height;
+    renderer.resize(width, height);
+    if (config.engine === "roll") {
+      renderer.update({ rollProgress: getRollProgressFromScroll() });
+    }
+  };
+  resize();
+  addEventListener("resize", resize);
+
   setScrollFromRollProgress(config.rollProgress);
 
   const onWheel = (e) => {
