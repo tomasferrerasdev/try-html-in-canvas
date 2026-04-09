@@ -734,7 +734,7 @@ void main() {
     height: "100vh",
     zIndex: "0",
     opacity: "1",
-    pointerEvents: "none",
+    pointerEvents: "auto",
     layoutSubtree: "layout",
   });
   sourceCanvas.style.setProperty("layout-subtree", "layout");
@@ -747,6 +747,7 @@ void main() {
     width: "100%",
     height: "100%",
     overflow: "auto",
+    pointerEvents: "auto",
     background: getComputedStyle(document.body).backgroundColor || "#fff",
   });
 
