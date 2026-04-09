@@ -7,7 +7,7 @@ You get a popup with a GLSL editor (syntax highlighted, with presets for blur, s
 ## Requirements
 
 - **Google Chrome** with experimental web platform features enabled:
-  1. Open `chrome://flags#enable-experimental-web-platform-features`
+  1. Open `chrome://flags#enable-experimental-web-platform-features` `chrome://flags/#canvas-draw-element`
   2. Set it to **Enabled**
   3. Restart Chrome
 - The `drawElement()` API is unshipped — without the flag the extension shows an error in the popup status bar.
