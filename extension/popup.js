@@ -725,7 +725,7 @@ void main() {
     width: "100vw",
     height: "100vh",
     zIndex: "0",
-    opacity: "0",
+    visibility: "hidden",
     pointerEvents: "none",
     layoutSubtree: "layout",
   });
@@ -833,6 +833,13 @@ void main() {
   let stopped = false;
   let warmupFrames = 2;
   let snapshotMisses = 0;
+  let stageVisible = false;
+
+  const setStageVisibility = (visible) => {
+    if (stageVisible === visible) return;
+    stageVisible = visible;
+    sourceCanvas.style.visibility = visible ? "visible" : "hidden";
+  };
 
   const isPaintRecordMiss = (error) =>
     error instanceof DOMException &&
@@ -841,12 +848,14 @@ void main() {
     error.message.includes("No cached paint record");
 
   const captureSnapshot = () => {
+    setStageVisibility(true);
     sctx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
 
     if (sctx.drawElementImage) {
       try {
         sctx.drawElementImage(wrapper, 0, 0);
         snapshotMisses = 0;
+        setStageVisibility(false);
         return true;
       } catch (error) {
         if (!isPaintRecordMiss(error) || !sctx.drawElement) throw error;
@@ -857,10 +866,12 @@ void main() {
       try {
         sctx.drawElement(wrapper, 0, 0);
         snapshotMisses = 0;
+        setStageVisibility(false);
         return true;
       } catch (error) {
         if (!isPaintRecordMiss(error)) throw error;
         snapshotMisses += 1;
+        setStageVisibility(false);
         if (snapshotMisses <= 5) {
           console.warn("[html-shader] paint record not ready yet, retrying", snapshotMisses);
         }
@@ -868,6 +879,7 @@ void main() {
       }
     }
 
+    setStageVisibility(false);
     return false;
   };
 
@@ -879,6 +891,7 @@ void main() {
     removeEventListener("wheel", onWheel);
     removeEventListener("keydown", onKey);
     renderer.destroy();
+    setStageVisibility(true);
     restoreDom();
     delete window.__htmlShaderStop;
     delete window.__htmlShaderUpdate;
