@@ -829,6 +829,45 @@ void main() {
   const start = performance.now();
   let raf = 0;
   let stopped = false;
+  let warmupFrames = 2;
+  let snapshotMisses = 0;
+
+  const isPaintRecordMiss = (error) =>
+    error instanceof DOMException &&
+    error.name === "InvalidStateError" &&
+    typeof error.message === "string" &&
+    error.message.includes("No cached paint record");
+
+  const captureSnapshot = () => {
+    sctx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
+
+    if (sctx.drawElementImage) {
+      try {
+        sctx.drawElementImage(wrapper, 0, 0);
+        snapshotMisses = 0;
+        return true;
+      } catch (error) {
+        if (!isPaintRecordMiss(error) || !sctx.drawElement) throw error;
+      }
+    }
+
+    if (sctx.drawElement) {
+      try {
+        sctx.drawElement(wrapper, 0, 0);
+        snapshotMisses = 0;
+        return true;
+      } catch (error) {
+        if (!isPaintRecordMiss(error)) throw error;
+        snapshotMisses += 1;
+        if (snapshotMisses <= 5) {
+          console.warn("[html-shader] paint record not ready yet, retrying", snapshotMisses);
+        }
+        return false;
+      }
+    }
+
+    return false;
+  };
 
   const stop = () => {
     if (stopped) return;
@@ -845,10 +884,17 @@ void main() {
 
   const frame = () => {
     if (stopped) return;
+    if (warmupFrames > 0) {
+      warmupFrames -= 1;
+      raf = requestAnimationFrame(frame);
+      return;
+    }
+
     try {
-      sctx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
-      if (sctx.drawElementImage) sctx.drawElementImage(wrapper, 0, 0);
-      else sctx.drawElement(wrapper, 0, 0);
+      if (!captureSnapshot()) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
     } catch (e) {
       console.error("[html-shader] snapshot failed", e);
       stop();
