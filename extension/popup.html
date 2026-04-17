@@ -4,45 +4,271 @@
     <meta charset="utf-8" />
     <title>HTML Shader</title>
     <style>
-      body { font-family: system-ui, sans-serif; margin: 0; padding: 12px; width: 360px; background: #111; color: #eee; }
-      h1 { font-size: 13px; margin: 0 0 8px; font-weight: 600; letter-spacing: .02em; }
-      p.note { font-size: 11px; color: #888; margin: 0 0 8px; line-height: 1.4; }
-      .editor { position: relative; height: 260px; border: 1px solid #333; border-radius: 4px; background: #1a1a1a; overflow: hidden; }
-      .editor.is-readonly { border-color: #3c3c3c; background: #151515; }
-      .editor pre, .editor textarea {
-        margin: 0; padding: 8px; border: 0; width: 100%; height: 100%;
-        font-family: ui-monospace, Menlo, monospace; font-size: 11px; line-height: 1.45;
-        white-space: pre; tab-size: 2; box-sizing: border-box; overflow: auto;
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        padding: 12px;
+        width: 360px;
+        background: #111;
+        color: #eee;
       }
-      .editor pre { position: absolute; inset: 0; pointer-events: none; color: #eee; }
+      h1 {
+        font-size: 13px;
+        margin: 0 0 8px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      p.note {
+        font-size: 11px;
+        color: #888;
+        margin: 0 0 8px;
+        line-height: 1.4;
+      }
+      .editor {
+        position: relative;
+        height: 260px;
+        border: 1px solid #333;
+        border-radius: 4px;
+        background: #1a1a1a;
+        overflow: hidden;
+      }
+      .editor.is-readonly {
+        border-color: #3c3c3c;
+        background: #151515;
+      }
+      .editor pre,
       .editor textarea {
-        position: absolute; inset: 0; background: transparent; color: transparent;
-        caret-color: #fff; resize: none; outline: none;
+        margin: 0;
+        padding: 8px;
+        border: 0;
+        width: 100%;
+        height: 100%;
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 11px;
+        line-height: 1.45;
+        white-space: pre;
+        tab-size: 2;
+        box-sizing: border-box;
+        overflow: auto;
       }
-      .editor.is-readonly textarea { cursor: default; }
-      .editor textarea::selection { background: rgba(120,120,255,0.35); color: transparent; }
-      .tok-key { color: #c792ea; }
-      .tok-type { color: #82aaff; }
-      .tok-bi  { color: #ffcb6b; }
-      .tok-num { color: #f78c6c; }
-      .tok-com { color: #5c6370; font-style: italic; }
-      .tok-pp  { color: #89ddff; }
-      .tok-str { color: #c3e88d; }
-      .controls { display: grid; gap: 6px; margin-top: 8px; }
-      .control { display: grid; gap: 4px; }
-      .control label { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #bbb; }
-      .control input[type="range"] { width: 100%; }
-      .row { display: flex; gap: 6px; margin-top: 8px; }
-      button { flex: 1; background: #2a2a2a; color: #eee; border: 1px solid #444; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-      button:hover { background: #333; }
-      button.primary { background: #4a3aff; border-color: #6a5aff; }
-      select { width: 100%; background: #1a1a1a; color: #eee; border: 1px solid #333; padding: 6px; border-radius: 4px; margin-bottom: 6px; }
-      #status { font-size: 11px; color: #f88; margin-top: 6px; min-height: 14px; }
+      .editor pre {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        color: #eee;
+      }
+      .editor textarea {
+        position: absolute;
+        inset: 0;
+        background: transparent;
+        color: transparent;
+        caret-color: #fff;
+        resize: none;
+        outline: none;
+      }
+      .editor.is-readonly textarea {
+        cursor: default;
+      }
+      .editor textarea::selection {
+        background: rgba(120, 120, 255, 0.35);
+        color: transparent;
+      }
+      .tok-key {
+        color: #c792ea;
+      }
+      .tok-type {
+        color: #82aaff;
+      }
+      .tok-bi {
+        color: #ffcb6b;
+      }
+      .tok-num {
+        color: #f78c6c;
+      }
+      .tok-com {
+        color: #5c6370;
+        font-style: italic;
+      }
+      .tok-pp {
+        color: #89ddff;
+      }
+      .tok-str {
+        color: #c3e88d;
+      }
+      .controls {
+        display: grid;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .control {
+        display: grid;
+        gap: 4px;
+      }
+      .control label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        color: #bbb;
+      }
+      .control input[type="range"] {
+        width: 100%;
+      }
+      .channel-list {
+        display: grid;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .channel-card {
+        border: 1px solid #333;
+        border-radius: 4px;
+        background: #171717;
+        padding: 8px;
+        display: grid;
+        gap: 6px;
+      }
+      .channel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .channel-head h2 {
+        margin: 0;
+        font-size: 11px;
+        color: #bbb;
+        font-weight: 600;
+      }
+      .channel-clear {
+        width: auto;
+        flex: none;
+        padding: 2px 6px;
+        min-width: 0;
+        font-size: 11px;
+        line-height: 1.2;
+      }
+      .channel-clear[hidden] {
+        display: none;
+      }
+      .channel-preview {
+        flex: none;
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        padding: 0;
+        border-radius: 4px;
+        border: 1px solid #2d2d2d;
+        overflow: hidden;
+        background: #101010 center / cover no-repeat;
+        cursor: pointer;
+      }
+      .channel-preview.is-empty {
+        background: linear-gradient(135deg, #141414, #101010);
+      }
+      .channel-preview.is-html {
+        background: linear-gradient(135deg, #2c2c2c, #171717);
+      }
+      .channel-preview.is-video {
+        background: linear-gradient(135deg, #1f2230, #10131a);
+      }
+      .channel-preview:hover {
+        border-color: #4a4a4a;
+      }
+      .channel-preview-badge {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: rgba(17, 17, 17, 0.8);
+        color: #ddd;
+        font-size: 10px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+      .channel-preview-label {
+        position: absolute;
+        inset: auto 8px 8px 8px;
+        font-size: 12px;
+        color: #fff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .channel-meta {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+      }
+      .channel-name {
+        font-size: 11px;
+        color: #eee;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .channel-detail {
+        font-size: 10px;
+        color: #8f8f8f;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .channel-card input[type="file"] {
+        margin: 0;
+      }
+      .channel-file[hidden] {
+        display: none;
+      }
+      .row {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      button {
+        flex: 1;
+        background: #2a2a2a;
+        color: #eee;
+        border: 1px solid #444;
+        padding: 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      button:hover {
+        background: #333;
+      }
+      button.primary {
+        background: #4a3aff;
+        border-color: #6a5aff;
+      }
+      select {
+        width: 100%;
+        background: #1a1a1a;
+        color: #eee;
+        border: 1px solid #333;
+        padding: 6px;
+        border-radius: 4px;
+        margin-bottom: 6px;
+      }
+      #status {
+        font-size: 11px;
+        color: #f88;
+        margin-top: 6px;
+        min-height: 14px;
+      }
     </style>
   </head>
   <body>
     <h1>HTML-in-Canvas Shader</h1>
-    <p id="preset_hint" class="note">Requires chrome://flags/#canvas-draw-element. Fragment presets expose <code>uTex</code>, <code>uTime</code>, <code>uResolution</code>, <code>vUv</code>.</p>
+    <p id="preset_hint" class="note">
+      Requires chrome://flags/#canvas-draw-element. Fragment presets expose
+      <code>iChannel0..3</code>, <code>iChannelResolution</code>,
+      <code>iTime</code>, <code>iResolution</code>, <code>vUv</code>. Legacy
+      <code>uTex</code>, <code>uTime</code>, <code>uResolution</code> still
+      work.
+    </p>
     <select id="preset">
       <option value="blur">Preset: Blur</option>
       <option value="swirl">Preset: Swirl</option>
@@ -50,19 +276,88 @@
       <option value="chromatic">Preset: Chromatic aberration</option>
       <option value="wave">Preset: Wave distortion</option>
       <option value="ascii">Preset: Pixelate</option>
+      <option value="textured">Preset: Textured HTML</option>
+      <option value="relief">Preset: Relief Surface</option>
       <option value="roll">Preset: 3D Roll</option>
     </select>
     <div class="editor">
       <pre id="shader-hl"><code></code></pre>
-      <textarea id="shader" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      <textarea
+        id="shader"
+        spellcheck="false"
+        autocomplete="off"
+        autocapitalize="off"
+      ></textarea>
     </div>
+    <div class="channel-list" id="channel_list"></div>
+    <p class="note">`Channel 0` always uses HTML live snapshot.</p>
     <div id="roll_controls" class="controls" hidden>
       <div class="control">
         <label for="roll_progress">
           <span>Roll progress</span>
           <span id="roll_progress_value">0.10</span>
         </label>
-        <input id="roll_progress" type="range" min="0" max="1" step="0.01" value="0.1" />
+        <input
+          id="roll_progress"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.1"
+        />
+      </div>
+    </div>
+    <div id="relief_controls" class="controls" hidden>
+      <div class="control">
+        <label for="relief_material">
+          <span>Default material</span>
+        </label>
+        <select id="relief_material">
+          <option value="brick-01">Brick 01</option>
+          <option value="brick-02">Brick 02</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="relief_tile_scale">
+          <span>Tile scale</span>
+          <span id="relief_tile_scale_value">4.00</span>
+        </label>
+        <input
+          id="relief_tile_scale"
+          type="range"
+          min="1"
+          max="12"
+          step="0.25"
+          value="4"
+        />
+      </div>
+      <div class="control">
+        <label for="relief_displacement">
+          <span>Displacement</span>
+          <span id="relief_displacement_value">0.20</span>
+        </label>
+        <input
+          id="relief_displacement"
+          type="range"
+          min="0"
+          max="0.8"
+          step="0.01"
+          value="0.2"
+        />
+      </div>
+      <div class="control">
+        <label for="relief_normal">
+          <span>Normal strength</span>
+          <span id="relief_normal_value">1.00</span>
+        </label>
+        <input
+          id="relief_normal"
+          type="range"
+          min="0"
+          max="3"
+          step="0.05"
+          value="1"
+        />
       </div>
     </div>
     <div class="row">
