@@ -73,6 +73,22 @@
         background: rgba(120, 120, 255, 0.35);
         color: transparent;
       }
+      .editor-stages {
+        display: flex;
+        gap: 6px;
+        margin: 8px 0 6px;
+      }
+      .editor-stage {
+        flex: none;
+        width: auto;
+        min-width: 0;
+        padding: 5px 10px;
+        font-size: 11px;
+      }
+      .editor-stage[aria-pressed="true"] {
+        background: #4a3aff;
+        border-color: #6a5aff;
+      }
       .tok-key {
         color: #c792ea;
       }
@@ -99,6 +115,9 @@
         display: grid;
         gap: 6px;
         margin-top: 8px;
+      }
+      [hidden] {
+        display: none !important;
       }
       .control {
         display: grid;
@@ -277,9 +296,13 @@
       <option value="wave">Preset: Wave distortion</option>
       <option value="ascii">Preset: Pixelate</option>
       <option value="textured">Preset: Textured HTML</option>
-      <option value="relief">Preset: Relief Surface</option>
+      <option value="displacement">Preset: Displacement Surface</option>
       <option value="roll">Preset: 3D Roll</option>
     </select>
+    <div id="editor_stages" class="editor-stages" hidden>
+      <button id="stage_vertex" class="editor-stage" type="button" aria-pressed="false">Vertex</button>
+      <button id="stage_fragment" class="editor-stage" type="button" aria-pressed="true">Fragment</button>
+    </div>
     <div class="editor">
       <pre id="shader-hl"><code></code></pre>
       <textarea
@@ -307,23 +330,23 @@
         />
       </div>
     </div>
-    <div id="relief_controls" class="controls" hidden>
+    <div id="displacement_controls" class="controls" hidden>
       <div class="control">
-        <label for="relief_material">
+        <label for="displacement_material">
           <span>Default material</span>
         </label>
-        <select id="relief_material">
+        <select id="displacement_material">
           <option value="brick-01">Brick 01</option>
           <option value="brick-02">Brick 02</option>
         </select>
       </div>
       <div class="control">
-        <label for="relief_tile_scale">
+        <label for="displacement_tile_scale">
           <span>Tile scale</span>
-          <span id="relief_tile_scale_value">4.00</span>
+          <span id="displacement_tile_scale_value">4.00</span>
         </label>
         <input
-          id="relief_tile_scale"
+          id="displacement_tile_scale"
           type="range"
           min="1"
           max="12"
@@ -332,12 +355,12 @@
         />
       </div>
       <div class="control">
-        <label for="relief_displacement">
+        <label for="displacement_strength">
           <span>Displacement</span>
-          <span id="relief_displacement_value">0.20</span>
+          <span id="displacement_strength_value">0.20</span>
         </label>
         <input
-          id="relief_displacement"
+          id="displacement_strength"
           type="range"
           min="0"
           max="0.8"
@@ -346,12 +369,12 @@
         />
       </div>
       <div class="control">
-        <label for="relief_normal">
+        <label for="displacement_normal_strength">
           <span>Normal strength</span>
-          <span id="relief_normal_value">1.00</span>
+          <span id="displacement_normal_strength_value">1.00</span>
         </label>
         <input
-          id="relief_normal"
+          id="displacement_normal_strength"
           type="range"
           min="0"
           max="3"

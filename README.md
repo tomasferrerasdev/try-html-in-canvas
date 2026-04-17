@@ -2,7 +2,7 @@
 
 A Chrome extension that snapshots the current web page using the **experimental [`drawElement()` Canvas API](https://github.com/WICG/html-in-canvas)** and renders it through a user-supplied **WebGL fragment shader** or a built-in **3D roll preset**.
 
-You get a popup with a GLSL editor (syntax highlighted, with presets for blur, swirl, invert, chromatic aberration, wave, pixelate, textured HTML, relief surface, plus a native roll effect), simple ShaderToy-style channels, and a live overlay on the active tab.
+You get a popup with a GLSL editor (syntax highlighted, with presets for blur, swirl, invert, chromatic aberration, wave, pixelate, textured HTML, displacement surface, plus a native roll effect), simple ShaderToy-style channels, and a live overlay on the active tab.
 
 ## Requirements
 
@@ -41,7 +41,7 @@ You get a popup with a GLSL editor (syntax highlighted, with presets for blur, s
   - `float iTime` — seconds since Apply
   - `vec3 iResolution` — viewport size in device pixels
   - Legacy aliases still work: `uTex` -> `iChannel0`, `uTime` -> `iTime`, `uResolution` -> `iResolution.xy`
-- The `Relief Surface` preset expects:
+- The `Displacement Surface` preset expects:
   - `iChannel0` = HTML snapshot
   - `iChannel1` = heightmap / displacement image
   - `iChannel2` = normal map image

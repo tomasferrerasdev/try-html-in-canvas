@@ -1,7 +1,7 @@
 const PRESETS = {
   blur: {
     kind: "fragment",
-    source: `precision highp float;
+    fragmentSource: `precision highp float;
 varying vec2 vUv;
 uniform sampler2D uTex;
 uniform float uTime;
@@ -35,7 +35,7 @@ void main() {
   },
   swirl: {
     kind: "fragment",
-    source: `precision highp float;
+    fragmentSource: `precision highp float;
 varying vec2 vUv;
 uniform sampler2D uTex;
 uniform float uTime;
@@ -55,7 +55,7 @@ void main() {
   },
   invert: {
     kind: "fragment",
-    source: `precision highp float;
+    fragmentSource: `precision highp float;
 varying vec2 vUv;
 uniform sampler2D uTex;
 uniform float uTime;
@@ -67,7 +67,7 @@ void main() {
   },
   chromatic: {
     kind: "fragment",
-    source: `precision highp float;
+    fragmentSource: `precision highp float;
 varying vec2 vUv;
 uniform sampler2D uTex;
 uniform float uTime;
@@ -82,7 +82,7 @@ void main() {
   },
   wave: {
     kind: "fragment",
-    source: `precision highp float;
+    fragmentSource: `precision highp float;
 varying vec2 vUv;
 uniform sampler2D uTex;
 uniform float uTime;
@@ -95,7 +95,7 @@ void main() {
   },
   ascii: {
     kind: "fragment",
-    source: `precision highp float;
+    fragmentSource: `precision highp float;
 varying vec2 vUv;
 uniform sampler2D uTex;
 uniform float uTime;
@@ -108,7 +108,7 @@ void main() {
   },
   textured: {
     kind: "fragment",
-    source: `precision highp float;
+    fragmentSource: `precision highp float;
 varying vec2 vUv;
 void main() {
   vec4 base = texture2D(iChannel0, vUv);
@@ -118,24 +118,67 @@ void main() {
   gl_FragColor = vec4(lit, base.a);
 }`,
   },
-  relief: {
+  displacement: {
     kind: "surface",
-    source: `// Relief Surface
-// iChannel0 = HTML snapshot
-// iChannel1 = displacement / height
-// iChannel2 = normal
-// iChannel3 = AO
-//
-// vertex stage
-//   materialUv = uv * uTileScale
-//   height = texture(iChannel1, materialUv).r
-//   position.z += (height - 0.5) * uDisplacementStrength
-//
-// fragment stage
-//   baseColor = texture(iChannel0, uv)
-//   detailNormal = texture(iChannel2, materialUv).xyz * 2.0 - 1.0
-//   ao = texture(iChannel3, materialUv).r
-//   shade HTML with normal + AO while preserving base color`,
+    vertexSource: `#version 300 es
+precision highp float;
+in vec2 aPosition;
+in vec2 aUv;
+uniform sampler2D iChannel1;
+uniform float uTileScale;
+uniform float uDisplacementStrength;
+uniform vec2 uMaterialScroll;
+uniform float uAspect;
+uniform float uCameraDist;
+uniform float uFovScale;
+uniform float uNear;
+uniform float uFar;
+out vec2 vUv;
+out vec2 vMaterialUv;
+out float vHeight;
+
+void main() {
+  vUv = aUv;
+  vMaterialUv = (aUv + uMaterialScroll) * uTileScale;
+  float height = texture(iChannel1, vMaterialUv).r;
+  vHeight = height;
+
+  vec3 pos = vec3(aPosition, 0.0);
+  pos.z = (height - 0.5) * uDisplacementStrength;
+  pos.x *= uAspect;
+
+  float viewZ = pos.z - uCameraDist;
+  float clipX = pos.x * uFovScale / uAspect;
+  float clipY = pos.y * uFovScale;
+  float clipZ = ((uFar + uNear) / (uNear - uFar)) * viewZ + ((2.0 * uFar * uNear) / (uNear - uFar));
+  gl_Position = vec4(clipX, clipY, clipZ, -viewZ);
+}`,
+    fragmentSource: `#version 300 es
+precision highp float;
+uniform sampler2D iChannel0;
+uniform sampler2D iChannel2;
+uniform sampler2D iChannel3;
+uniform float uNormalStrength;
+in vec2 vUv;
+in vec2 vMaterialUv;
+in float vHeight;
+out vec4 outColor;
+
+void main() {
+  vec4 base = texture(iChannel0, vUv);
+  vec3 tangentNormal = texture(iChannel2, vMaterialUv).xyz * 2.0 - 1.0;
+  tangentNormal.xy *= uNormalStrength;
+  vec3 detailNormal = normalize(tangentNormal);
+  float ao = texture(iChannel3, vMaterialUv).r;
+  vec3 lightDir = normalize(vec3(-0.42, -0.35, 1.0));
+  float diffuse = max(dot(detailNormal, lightDir), 0.0);
+  float ambient = 0.72;
+  float cavity = 1.0 - smoothstep(0.18, 0.8, vHeight);
+  vec3 color = base.rgb * (ambient + diffuse * 0.48);
+  color *= mix(1.0, ao, 0.32);
+  color *= 1.0 - cavity * 0.1;
+  outColor = vec4(color, base.a);
+}`,
   },
   roll: {
     kind: "roll",
@@ -155,10 +198,10 @@ void main() {
 
 const DEFAULT_PRESET = "blur";
 const ROLL_DEFAULT_PROGRESS = 0.1;
-const RELIEF_DEFAULT_MATERIAL = "brick-01";
-const RELIEF_DEFAULT_TILE_SCALE = 4;
-const RELIEF_DEFAULT_DISPLACEMENT = 0.2;
-const RELIEF_DEFAULT_NORMAL = 1;
+const DISPLACEMENT_DEFAULT_MATERIAL = "brick-01";
+const DISPLACEMENT_DEFAULT_TILE_SCALE = 4;
+const DISPLACEMENT_DEFAULT_STRENGTH = 0.2;
+const DISPLACEMENT_DEFAULT_NORMAL_STRENGTH = 1;
 const CHANNEL_COUNT = 4;
 
 const $ = (id) => document.getElementById(id);
@@ -166,15 +209,18 @@ const statusEl = $("status");
 const shaderEl = $("shader");
 const presetEl = $("preset");
 const presetHintEl = $("preset_hint");
+const editorStagesEl = $("editor_stages");
+const stageVertexEl = $("stage_vertex");
+const stageFragmentEl = $("stage_fragment");
 const channelListEl = $("channel_list");
-const reliefControlsEl = $("relief_controls");
-const reliefMaterialEl = $("relief_material");
-const reliefTileScaleEl = $("relief_tile_scale");
-const reliefTileScaleValueEl = $("relief_tile_scale_value");
-const reliefDisplacementEl = $("relief_displacement");
-const reliefDisplacementValueEl = $("relief_displacement_value");
-const reliefNormalEl = $("relief_normal");
-const reliefNormalValueEl = $("relief_normal_value");
+const displacementControlsEl = $("displacement_controls");
+const displacementMaterialEl = $("displacement_material");
+const displacementTileScaleEl = $("displacement_tile_scale");
+const displacementTileScaleValueEl = $("displacement_tile_scale_value");
+const displacementStrengthEl = $("displacement_strength");
+const displacementStrengthValueEl = $("displacement_strength_value");
+const displacementNormalStrengthEl = $("displacement_normal_strength");
+const displacementNormalStrengthValueEl = $("displacement_normal_strength_value");
 const rollControlsEl = $("roll_controls");
 const rollProgressEl = $("roll_progress");
 const rollProgressValueEl = $("roll_progress_value");
@@ -184,10 +230,14 @@ const channelControls = [];
 
 const appState = {
   appliedEngine: null,
+  activeStage: "fragment",
 };
 const presetAssetCache = new Map();
+const editablePresets = Object.fromEntries(
+  Object.entries(PRESETS).map(([key, preset]) => [key, { ...preset }]),
+);
 
-const RELIEF_MATERIALS = {
+const DISPLACEMENT_MATERIALS = {
   "brick-01": {
     label: "Brick 01",
     height: "assets/materials/brick-01/displacement.jpg",
@@ -348,7 +398,53 @@ function syncHighlight() {
 }
 
 function getPreset() {
-  return PRESETS[presetEl.value] || PRESETS[DEFAULT_PRESET];
+  return editablePresets[presetEl.value] || editablePresets[DEFAULT_PRESET];
+}
+
+function getAvailableStages(preset = getPreset()) {
+  if (preset.kind === "surface") return ["vertex", "fragment"];
+  return ["fragment"];
+}
+
+function ensureValidActiveStage(preset = getPreset()) {
+  const stages = getAvailableStages(preset);
+  if (!stages.includes(appState.activeStage)) {
+    appState.activeStage = stages[0];
+  }
+}
+
+function getPresetSourceForStage(preset = getPreset(), stage = appState.activeStage) {
+  if (stage === "vertex") return preset.vertexSource || "";
+  return preset.fragmentSource || preset.source || "";
+}
+
+function setPresetSourceForStage(value, preset = getPreset(), stage = appState.activeStage) {
+  if (stage === "vertex") {
+    preset.vertexSource = value;
+    return;
+  }
+  if (preset.kind === "fragment") {
+    preset.fragmentSource = value;
+    return;
+  }
+  if (preset.kind === "surface") {
+    preset.fragmentSource = value;
+    return;
+  }
+  preset.source = value;
+}
+
+function updateStageUi(preset = getPreset()) {
+  const stages = getAvailableStages(preset);
+  const showStagePicker = stages.length > 1;
+  editorStagesEl.hidden = !showStagePicker;
+  stageVertexEl.hidden = !stages.includes("vertex");
+  stageFragmentEl.hidden = !stages.includes("fragment");
+  stageVertexEl.setAttribute("aria-pressed", String(appState.activeStage === "vertex"));
+  stageFragmentEl.setAttribute(
+    "aria-pressed",
+    String(appState.activeStage === "fragment"),
+  );
 }
 
 function getRollProgress() {
@@ -368,36 +464,42 @@ function setRollProgressLabel() {
   rollProgressValueEl.textContent = getRollProgress().toFixed(2);
 }
 
-function getReliefTileScale() {
-  return Math.max(0.25, Number(reliefTileScaleEl.value) || RELIEF_DEFAULT_TILE_SCALE);
+function getDisplacementTileScale() {
+  return Math.max(
+    0.25,
+    Number(displacementTileScaleEl.value) || DISPLACEMENT_DEFAULT_TILE_SCALE,
+  );
 }
 
-function getReliefDisplacement() {
-  return Math.max(0, Number(reliefDisplacementEl.value) || 0);
+function getDisplacementStrength() {
+  return Math.max(0, Number(displacementStrengthEl.value) || 0);
 }
 
-function getReliefNormal() {
-  return Math.max(0, Number(reliefNormalEl.value) || 0);
+function getDisplacementNormalStrength() {
+  return Math.max(0, Number(displacementNormalStrengthEl.value) || 0);
 }
 
-function setReliefLabels() {
-  reliefTileScaleValueEl.textContent = getReliefTileScale().toFixed(2);
-  reliefDisplacementValueEl.textContent = getReliefDisplacement().toFixed(2);
-  reliefNormalValueEl.textContent = getReliefNormal().toFixed(2);
+function setDisplacementLabels() {
+  displacementTileScaleValueEl.textContent = getDisplacementTileScale().toFixed(2);
+  displacementStrengthValueEl.textContent = getDisplacementStrength().toFixed(2);
+  displacementNormalStrengthValueEl.textContent = getDisplacementNormalStrength().toFixed(2);
 }
 
 function syncPresetUi() {
   const preset = getPreset();
-  shaderEl.value = preset.source;
-  shaderEl.readOnly = preset.kind !== "fragment";
-  editorEl.classList.toggle("is-readonly", preset.kind !== "fragment");
-  reliefControlsEl.hidden = presetEl.value !== "relief";
+  ensureValidActiveStage(preset);
+  shaderEl.value = getPresetSourceForStage(preset);
+  const readOnly = preset.kind === "roll";
+  shaderEl.readOnly = readOnly;
+  editorEl.classList.toggle("is-readonly", readOnly);
+  updateStageUi(preset);
+  displacementControlsEl.hidden = presetEl.value !== "displacement";
   rollControlsEl.hidden = preset.kind !== "roll";
   presetHintEl.innerHTML =
     preset.kind === "roll"
       ? "Requires <code>chrome://flags/#canvas-draw-element</code>. This preset uses a built-in WebGL mesh pass with live <code>uProgress</code> control."
-      : presetEl.value === "relief"
-        ? "Requires <code>chrome://flags/#canvas-draw-element</code>. Relief Surface deforms a subdivided page mesh with <code>iChannel1</code> displacement, then shades it with <code>iChannel2</code> normal and <code>iChannel3</code> AO. Controls below are scoped to this surface experiment."
+      : presetEl.value === "displacement"
+        ? "Requires <code>chrome://flags/#canvas-draw-element</code>. Displacement Surface deforms a subdivided page mesh with <code>iChannel1</code> displacement, then shades it with <code>iChannel2</code> normal and <code>iChannel3</code> AO. The controls below are only available for this preset."
       : "Requires <code>chrome://flags/#canvas-draw-element</code>. Fragment presets expose <code>iChannel0..3</code>, <code>iChannelResolution</code>, <code>iTime</code>, <code>iResolution</code>, <code>vUv</code>. Legacy <code>uTex</code>, <code>uTime</code>, <code>uResolution</code> still work.";
   syncHighlight();
   refreshAllChannelCards();
@@ -466,8 +568,8 @@ function renderChannelControls() {
   refreshAllChannelCards();
 }
 
-function applyReliefChannelDefaults() {
-  if (presetEl.value !== "relief") return;
+function applyDisplacementChannelDefaults() {
+  if (presetEl.value !== "displacement") return;
   for (let index = 0; index < channelControls.length; index += 1) {
     channelControls[index].suppressDefault = false;
     updateChannelCard(channelControls[index], index);
@@ -478,10 +580,12 @@ function getAssetFileName(path) {
   return String(path || "").split("/").pop() || "asset";
 }
 
-function getReliefDefaultAsset(index) {
-  if (presetEl.value !== "relief" || index === 0) return null;
-  const materialKey = reliefMaterialEl.value || RELIEF_DEFAULT_MATERIAL;
-  const material = RELIEF_MATERIALS[materialKey] || RELIEF_MATERIALS[RELIEF_DEFAULT_MATERIAL];
+function getDisplacementDefaultAsset(index) {
+  if (presetEl.value !== "displacement" || index === 0) return null;
+  const materialKey = displacementMaterialEl.value || DISPLACEMENT_DEFAULT_MATERIAL;
+  const material =
+    DISPLACEMENT_MATERIALS[materialKey] ||
+    DISPLACEMENT_MATERIALS[DISPLACEMENT_DEFAULT_MATERIAL];
   const path =
     index === 1 ? material.height : index === 2 ? material.normal : index === 3 ? material.ao : null;
   if (!path) return null;
@@ -496,7 +600,7 @@ function getReliefDefaultAsset(index) {
 function resolveChannelCardState(control, index) {
   const file = control.fileInput.files?.[0] || null;
   const defaultAsset =
-    index > 0 && !control.suppressDefault ? getReliefDefaultAsset(index) : null;
+    index > 0 && !control.suppressDefault ? getDisplacementDefaultAsset(index) : null;
 
   if (index === 0) {
     return {
@@ -594,10 +698,10 @@ async function getAssetAsDataUrl(relativePath) {
   return promise;
 }
 
-async function getReliefDefaultChannels() {
+async function getDisplacementDefaultChannels() {
   const material =
-    RELIEF_MATERIALS[reliefMaterialEl.value] ||
-    RELIEF_MATERIALS[RELIEF_DEFAULT_MATERIAL];
+    DISPLACEMENT_MATERIALS[displacementMaterialEl.value] ||
+    DISPLACEMENT_MATERIALS[DISPLACEMENT_DEFAULT_MATERIAL];
 
   const [heightSrc, normalSrc, aoSrc] = await Promise.all([
     getAssetAsDataUrl(material.height),
@@ -606,9 +710,9 @@ async function getReliefDefaultChannels() {
   ]);
 
   return [
-    { id: 1, type: "image", name: `${reliefMaterialEl.value}-height`, src: heightSrc, wrap: "repeat" },
-    { id: 2, type: "image", name: `${reliefMaterialEl.value}-normal`, src: normalSrc, wrap: "repeat" },
-    { id: 3, type: "image", name: `${reliefMaterialEl.value}-ao`, src: aoSrc, wrap: "repeat" },
+    { id: 1, type: "image", name: `${displacementMaterialEl.value}-height`, src: heightSrc, wrap: "repeat" },
+    { id: 2, type: "image", name: `${displacementMaterialEl.value}-normal`, src: normalSrc, wrap: "repeat" },
+    { id: 3, type: "image", name: `${displacementMaterialEl.value}-ao`, src: aoSrc, wrap: "repeat" },
   ];
 }
 
@@ -627,7 +731,7 @@ async function buildChannelConfig(control, index) {
   const file = control.fileInput.files?.[0];
   if (!file) {
     if (
-      presetEl.value === "relief" &&
+      presetEl.value === "displacement" &&
       index > 0 &&
       !control.suppressDefault
     ) {
@@ -641,7 +745,7 @@ async function buildChannelConfig(control, index) {
     type: "image",
     name: file.name,
     mimeType: file.type,
-    wrap: presetEl.value === "relief" && index > 0 ? "repeat" : "clamp",
+    wrap: presetEl.value === "displacement" && index > 0 ? "repeat" : "clamp",
     src: await readFileAsDataUrl(file),
   };
 }
@@ -652,8 +756,8 @@ async function buildApplyConfig() {
     channelControls.map((control, index) => buildChannelConfig(control, index)),
   );
 
-  if (presetEl.value === "relief") {
-    const defaults = await getReliefDefaultChannels();
+  if (presetEl.value === "displacement") {
+    const defaults = await getDisplacementDefaultChannels();
     for (const channel of defaults) {
       const existing = channels[channel.id];
       const hasCustomFile = channelControls[channel.id].fileInput.files?.length;
@@ -665,16 +769,20 @@ async function buildApplyConfig() {
 
   return {
     engine: preset.kind,
-    fragSrc: shaderEl.value,
+    fragSrc: preset.fragmentSource || "",
+    vertexSrc: preset.vertexSource || "",
     rollProgress: getRollProgress(),
-    reliefTileScale: getReliefTileScale(),
-    reliefDisplacementStrength: getReliefDisplacement(),
-    reliefNormalStrength: getReliefNormal(),
+    displacementTileScale: getDisplacementTileScale(),
+    displacementStrength: getDisplacementStrength(),
+    displacementNormalStrength: getDisplacementNormalStrength(),
     channels,
   };
 }
 
-shaderEl.addEventListener("input", syncHighlight);
+shaderEl.addEventListener("input", () => {
+  setPresetSourceForStage(shaderEl.value);
+  syncHighlight();
+});
 shaderEl.addEventListener("scroll", () => {
   hlEl.parentElement.scrollTop = shaderEl.scrollTop;
   hlEl.parentElement.scrollLeft = shaderEl.scrollLeft;
@@ -689,29 +797,42 @@ shaderEl.addEventListener("keydown", (e) => {
       end,
     )}`;
     shaderEl.selectionStart = shaderEl.selectionEnd = start + 2;
+    setPresetSourceForStage(shaderEl.value);
     syncHighlight();
   }
 });
 
 presetEl.value = DEFAULT_PRESET;
 rollProgressEl.value = String(ROLL_DEFAULT_PROGRESS);
-reliefMaterialEl.value = RELIEF_DEFAULT_MATERIAL;
-reliefTileScaleEl.value = String(RELIEF_DEFAULT_TILE_SCALE);
-reliefDisplacementEl.value = String(RELIEF_DEFAULT_DISPLACEMENT);
-reliefNormalEl.value = String(RELIEF_DEFAULT_NORMAL);
+displacementMaterialEl.value = DISPLACEMENT_DEFAULT_MATERIAL;
+displacementTileScaleEl.value = String(DISPLACEMENT_DEFAULT_TILE_SCALE);
+displacementStrengthEl.value = String(DISPLACEMENT_DEFAULT_STRENGTH);
+displacementNormalStrengthEl.value = String(DISPLACEMENT_DEFAULT_NORMAL_STRENGTH);
 renderChannelControls();
 setRollProgressLabel();
-setReliefLabels();
+setDisplacementLabels();
 syncPresetUi();
 
-presetEl.addEventListener("change", () => {
-  setStatus("");
-  applyReliefChannelDefaults();
+stageVertexEl.addEventListener("click", () => {
+  if (appState.activeStage === "vertex") return;
+  appState.activeStage = "vertex";
   syncPresetUi();
 });
 
-reliefMaterialEl.addEventListener("change", () => {
-  if (presetEl.value !== "relief") return;
+stageFragmentEl.addEventListener("click", () => {
+  if (appState.activeStage === "fragment") return;
+  appState.activeStage = "fragment";
+  syncPresetUi();
+});
+
+presetEl.addEventListener("change", () => {
+  setStatus("");
+  applyDisplacementChannelDefaults();
+  syncPresetUi();
+});
+
+displacementMaterialEl.addEventListener("change", () => {
+  if (presetEl.value !== "displacement") return;
   for (let index = 1; index < channelControls.length; index += 1) {
     if (!channelControls[index].fileInput.files?.length) {
       channelControls[index].suppressDefault = false;
@@ -721,23 +842,23 @@ reliefMaterialEl.addEventListener("change", () => {
   setStatus(appState.appliedEngine === "surface" ? "Click Apply to load the selected default material." : "");
 });
 
-reliefTileScaleEl.addEventListener("input", async () => {
-  setReliefLabels();
-  if (presetEl.value !== "relief" || appState.appliedEngine !== "surface") return;
+displacementTileScaleEl.addEventListener("input", async () => {
+  setDisplacementLabels();
+  if (presetEl.value !== "displacement" || appState.appliedEngine !== "surface") return;
   try {
-    await inject(updateShaderConfigInPage, [{ reliefTileScale: getReliefTileScale() }]);
+    await inject(updateShaderConfigInPage, [{ displacementTileScale: getDisplacementTileScale() }]);
     setStatus("");
   } catch (e) {
     setStatus(String(e));
   }
 });
 
-reliefDisplacementEl.addEventListener("input", async () => {
-  setReliefLabels();
-  if (presetEl.value !== "relief" || appState.appliedEngine !== "surface") return;
+displacementStrengthEl.addEventListener("input", async () => {
+  setDisplacementLabels();
+  if (presetEl.value !== "displacement" || appState.appliedEngine !== "surface") return;
   try {
     await inject(updateShaderConfigInPage, [
-      { reliefDisplacementStrength: getReliefDisplacement() },
+      { displacementStrength: getDisplacementStrength() },
     ]);
     setStatus("");
   } catch (e) {
@@ -745,11 +866,11 @@ reliefDisplacementEl.addEventListener("input", async () => {
   }
 });
 
-reliefNormalEl.addEventListener("input", async () => {
-  setReliefLabels();
-  if (presetEl.value !== "relief" || appState.appliedEngine !== "surface") return;
+displacementNormalStrengthEl.addEventListener("input", async () => {
+  setDisplacementLabels();
+  if (presetEl.value !== "displacement" || appState.appliedEngine !== "surface") return;
   try {
-    await inject(updateShaderConfigInPage, [{ reliefNormalStrength: getReliefNormal() }]);
+    await inject(updateShaderConfigInPage, [{ displacementNormalStrength: getDisplacementNormalStrength() }]);
     setStatus("");
   } catch (e) {
     setStatus(String(e));
@@ -813,9 +934,9 @@ async function applyShaderInPage(rawConfig) {
   const hasDraw = "drawElement" in ctx2dProto;
   const hasPlace = "placeElement" in ctx2dProto;
   const CHANNEL_COUNT = 4;
-  const DEFAULT_RELIEF_TILE_SCALE = 4;
-  const DEFAULT_RELIEF_DISPLACEMENT = 0.2;
-  const DEFAULT_RELIEF_NORMAL = 1;
+  const DEFAULT_DISPLACEMENT_TILE_SCALE = 4;
+  const DEFAULT_DISPLACEMENT_STRENGTH = 0.2;
+  const DEFAULT_DISPLACEMENT_NORMAL_STRENGTH = 1;
   if (!hasDrawImage && !hasDraw && !hasPlace) {
     return "No drawElementImage/drawElement on CanvasRenderingContext2D. Enable chrome://flags/#canvas-draw-element and restart Chrome.";
   }
@@ -1156,65 +1277,9 @@ out vec4 outColor;
     };
   }
 
-  function createSurfaceReliefRenderer(gl, channelSources, config) {
-    const vsSrc = `#version 300 es
-precision highp float;
-in vec2 aPosition;
-in vec2 aUv;
-uniform sampler2D iChannel1;
-uniform float uTileScale;
-uniform float uDisplacementStrength;
-uniform vec2 uMaterialScroll;
-uniform float uAspect;
-uniform float uCameraDist;
-uniform float uFovScale;
-uniform float uNear;
-uniform float uFar;
-out vec2 vUv;
-out vec2 vMaterialUv;
-out float vHeight;
-void main() {
-  vUv = aUv;
-  vMaterialUv = (aUv + uMaterialScroll) * uTileScale;
-  float height = texture(iChannel1, vMaterialUv).r;
-  vHeight = height;
-
-  vec3 pos = vec3(aPosition, 0.0);
-  pos.z = (height - 0.5) * uDisplacementStrength;
-  pos.x *= uAspect;
-
-  float viewZ = pos.z - uCameraDist;
-  float clipX = pos.x * uFovScale / uAspect;
-  float clipY = pos.y * uFovScale;
-  float clipZ = ((uFar + uNear) / (uNear - uFar)) * viewZ + ((2.0 * uFar * uNear) / (uNear - uFar));
-  gl_Position = vec4(clipX, clipY, clipZ, -viewZ);
-}`;
-
-    const fsSrc = `#version 300 es
-precision highp float;
-uniform sampler2D iChannel0;
-uniform sampler2D iChannel2;
-uniform sampler2D iChannel3;
-uniform float uNormalStrength;
-in vec2 vUv;
-in vec2 vMaterialUv;
-in float vHeight;
-out vec4 outColor;
-void main() {
-  vec4 base = texture(iChannel0, vUv);
-  vec3 tangentNormal = texture(iChannel2, vMaterialUv).xyz * 2.0 - 1.0;
-  tangentNormal.xy *= uNormalStrength;
-  vec3 detailNormal = normalize(tangentNormal);
-  float ao = texture(iChannel3, vMaterialUv).r;
-  vec3 lightDir = normalize(vec3(-0.42, -0.35, 1.0));
-  float diffuse = max(dot(detailNormal, lightDir), 0.0);
-  float ambient = 0.72;
-  float cavity = 1.0 - smoothstep(0.18, 0.8, vHeight);
-  vec3 color = base.rgb * (ambient + diffuse * 0.48);
-  color *= mix(1.0, ao, 0.32);
-  color *= 1.0 - cavity * 0.1;
-  outColor = vec4(color, base.a);
-}`;
+  function createDisplacementSurfaceRenderer(gl, channelSources, config) {
+    const vsSrc = String(config.vertexSrc || "");
+    const fsSrc = String(config.fragSrc || "");
 
     const program = createProgram(gl, vsSrc, fsSrc);
     const geometry = createPlaneGrid(192, 108);
@@ -1253,11 +1318,11 @@ void main() {
     const state = {
       width: 1,
       height: 1,
-      tileScale: Math.max(0.25, Number(config.reliefTileScale) || 4),
-      displacementStrength: Math.max(0, Number(config.reliefDisplacementStrength) || 0),
-      normalStrength: Math.max(0, Number(config.reliefNormalStrength) || 0),
-      materialScrollX: Number(config.reliefMaterialScrollX) || 0,
-      materialScrollY: Number(config.reliefMaterialScrollY) || 0,
+      tileScale: Math.max(0.25, Number(config.displacementTileScale) || 4),
+      displacementStrength: Math.max(0, Number(config.displacementStrength) || 0),
+      normalStrength: Math.max(0, Number(config.displacementNormalStrength) || 0),
+      materialScrollX: Number(config.displacementMaterialScrollX) || 0,
+      materialScrollY: Number(config.displacementMaterialScrollY) || 0,
     };
     const near = 0.1;
     const far = 10;
@@ -1272,26 +1337,26 @@ void main() {
       },
       update(nextConfig) {
         if (!nextConfig) return;
-        if ("reliefTileScale" in nextConfig) {
-          state.tileScale = Math.max(0.25, Number(nextConfig.reliefTileScale) || 0.25);
+        if ("displacementTileScale" in nextConfig) {
+          state.tileScale = Math.max(0.25, Number(nextConfig.displacementTileScale) || 0.25);
         }
-        if ("reliefDisplacementStrength" in nextConfig) {
+        if ("displacementStrength" in nextConfig) {
           state.displacementStrength = Math.max(
             0,
-            Number(nextConfig.reliefDisplacementStrength) || 0,
+            Number(nextConfig.displacementStrength) || 0,
           );
         }
-        if ("reliefNormalStrength" in nextConfig) {
+        if ("displacementNormalStrength" in nextConfig) {
           state.normalStrength = Math.max(
             0,
-            Number(nextConfig.reliefNormalStrength) || 0,
+            Number(nextConfig.displacementNormalStrength) || 0,
           );
         }
-        if ("reliefMaterialScrollX" in nextConfig) {
-          state.materialScrollX = Number(nextConfig.reliefMaterialScrollX) || 0;
+        if ("displacementMaterialScrollX" in nextConfig) {
+          state.materialScrollX = Number(nextConfig.displacementMaterialScrollX) || 0;
         }
-        if ("reliefMaterialScrollY" in nextConfig) {
-          state.materialScrollY = Number(nextConfig.reliefMaterialScrollY) || 0;
+        if ("displacementMaterialScrollY" in nextConfig) {
+          state.materialScrollY = Number(nextConfig.displacementMaterialScrollY) || 0;
         }
       },
       render() {
@@ -1563,10 +1628,11 @@ void main() {
       ? {
           engine: "fragment",
           fragSrc: rawConfig,
+          vertexSrc: "",
           rollProgress: 1,
-          reliefTileScale: DEFAULT_RELIEF_TILE_SCALE,
-          reliefDisplacementStrength: DEFAULT_RELIEF_DISPLACEMENT,
-          reliefNormalStrength: DEFAULT_RELIEF_NORMAL,
+          displacementTileScale: DEFAULT_DISPLACEMENT_TILE_SCALE,
+          displacementStrength: DEFAULT_DISPLACEMENT_STRENGTH,
+          displacementNormalStrength: DEFAULT_DISPLACEMENT_NORMAL_STRENGTH,
           channels: [{ id: 0, type: "html" }],
         }
       : {
@@ -1577,18 +1643,19 @@ void main() {
                 ? "surface"
                 : "fragment",
           fragSrc: String(rawConfig?.fragSrc || ""),
+          vertexSrc: String(rawConfig?.vertexSrc || ""),
           rollProgress: clampUnit(Number(rawConfig?.rollProgress ?? 1)),
-          reliefTileScale: Math.max(
+          displacementTileScale: Math.max(
             0.25,
-            Number(rawConfig?.reliefTileScale) || DEFAULT_RELIEF_TILE_SCALE,
+            Number(rawConfig?.displacementTileScale) || DEFAULT_DISPLACEMENT_TILE_SCALE,
           ),
-          reliefDisplacementStrength: Math.max(
+          displacementStrength: Math.max(
             0,
-            Number(rawConfig?.reliefDisplacementStrength) || DEFAULT_RELIEF_DISPLACEMENT,
+            Number(rawConfig?.displacementStrength) || DEFAULT_DISPLACEMENT_STRENGTH,
           ),
-          reliefNormalStrength: Math.max(
+          displacementNormalStrength: Math.max(
             0,
-            Number(rawConfig?.reliefNormalStrength) || DEFAULT_RELIEF_NORMAL,
+            Number(rawConfig?.displacementNormalStrength) || DEFAULT_DISPLACEMENT_NORMAL_STRENGTH,
           ),
           channels: Array.isArray(rawConfig?.channels)
             ? rawConfig.channels.slice(0, CHANNEL_COUNT)
@@ -1697,7 +1764,7 @@ void main() {
       config.engine === "roll"
         ? createRollRenderer(gl, sourceCanvas, config)
         : config.engine === "surface"
-          ? createSurfaceReliefRenderer(gl, channelSources, config)
+          ? createDisplacementSurfaceRenderer(gl, channelSources, config)
           : createFragmentRenderer(
             gl,
             channelSources,
@@ -1722,9 +1789,9 @@ void main() {
     return 0.1 + ratio * 0.9;
   };
 
-  const getReliefMaterialScroll = () => ({
-    reliefMaterialScrollX: wrapper.scrollLeft / Math.max(wrapper.clientWidth, 1),
-    reliefMaterialScrollY: wrapper.scrollTop / Math.max(wrapper.clientHeight, 1),
+  const getDisplacementMaterialScroll = () => ({
+    displacementMaterialScrollX: wrapper.scrollLeft / Math.max(wrapper.clientWidth, 1),
+    displacementMaterialScrollY: wrapper.scrollTop / Math.max(wrapper.clientHeight, 1),
   });
 
   const syncRollFromScroll = () => {
@@ -1732,14 +1799,14 @@ void main() {
     renderer.update({ rollProgress: getRollProgressFromScroll() });
   };
 
-  const syncReliefFromScroll = () => {
+  const syncDisplacementFromScroll = () => {
     if (config.engine !== "surface") return;
-    renderer.update(getReliefMaterialScroll());
+    renderer.update(getDisplacementMaterialScroll());
   };
 
   const syncRendererFromScroll = () => {
     syncRollFromScroll();
-    syncReliefFromScroll();
+    syncDisplacementFromScroll();
   };
 
   const setScrollFromRollProgress = (progress) => {
@@ -1766,7 +1833,7 @@ void main() {
       renderer.update({ rollProgress: getRollProgressFromScroll() });
     }
     if (config.engine === "surface") {
-      renderer.update(getReliefMaterialScroll());
+      renderer.update(getDisplacementMaterialScroll());
     }
   };
   resize();
