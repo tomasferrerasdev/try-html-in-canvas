@@ -2,7 +2,7 @@
 
 A Chrome extension that snapshots the current web page using the **experimental [`drawElement()` Canvas API](https://github.com/WICG/html-in-canvas)** and renders it through a user-supplied **WebGL fragment shader** or a built-in **3D roll preset**.
 
-You get a popup with a GLSL editor (syntax highlighted, with presets for blur, swirl, invert, chromatic aberration, wave, pixelate, plus a native roll effect) and a live overlay on the active tab.
+You get a popup with a GLSL editor (syntax highlighted, with presets for blur, swirl, invert, chromatic aberration, wave, pixelate, textured HTML, displacement surface, plus a native roll effect), simple ShaderToy-style channels, and a live overlay on the active tab.
 
 ## Requirements
 
@@ -35,10 +35,20 @@ You get a popup with a GLSL editor (syntax highlighted, with presets for blur, s
      - a subdivided page mesh with a perspective vertex deformation for the built-in roll preset.
   4. Forwards wheel/keyboard scrolling into the wrapper, since the real document body is now empty.
 - Your shader runs in WebGL2 with a GLSL ES 1.00 compatibility shim. Available uniforms:
-  - `sampler2D uTex` — the page snapshot
+  - `sampler2D iChannel0..iChannel3` — ShaderToy-style inputs (HTML, image, video, or empty)
+  - `vec3 iChannelResolution[4]` — per-channel dimensions
   - `vec2 vUv` — UV coordinate (0–1)
-  - `float uTime` — seconds since Apply
-  - `vec2 uResolution` — canvas size in device pixels
+  - `float iTime` — seconds since Apply
+  - `vec3 iResolution` — viewport size in device pixels
+  - Legacy aliases still work: `uTex` -> `iChannel0`, `uTime` -> `iTime`, `uResolution` -> `iResolution.xy`
+- The `Displacement Surface` preset expects:
+  - `iChannel0` = HTML snapshot
+  - `iChannel1` = heightmap / displacement image
+  - `iChannel2` = normal map image
+  - `iChannel3` = AO image
+  - popup controls drive the material selector plus `uTileScale`, `uDisplacementStrength`, and `uNormalStrength`
+  - bundled defaults live in `extension/assets/materials/brick-01` and `extension/assets/materials/brick-02`
+- It deforms a subdivided page mesh in the vertex shader so the page reads as a displaced surface instead of a fullscreen post-process.
 - The roll preset is not driven by the fragment editor. It uses a built-in vertex + fragment pipeline so the page can curl in 3D with correct depth and backface rendering.
 
 ## Caveats
